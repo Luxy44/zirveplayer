@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zirve Premium v900</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <title>Zirve Premium v10</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.10/dist/hls.min.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        video { width: 100%; height: 100%; object-fit: contain; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        video { width: 100%; height: 100%; background: #000; }
 
-        /* İSTEDİĞİN O BÜYÜK BAŞLAT BUTONU */
+        /* O MEŞHUR BÜYÜK KIRMIZI BUTON */
         #playBtn {
             position: absolute;
-            width: 120px; height: 120px;
-            background: rgba(229, 9, 20, 0.95);
+            width: 130px; height: 130px;
+            background: #e50914; /* Netflix Kırmızısı */
             border-radius: 50%;
-            border: 5px solid #fff;
+            border: 6px solid #fff;
             display: flex; justify-content: center; align-items: center;
-            cursor: pointer; z-index: 100;
-            box-shadow: 0 0 40px rgba(255, 0, 0, 0.7);
-            transition: all 0.3s;
+            cursor: pointer; z-index: 9999;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.7);
+            transition: transform 0.2s;
         }
-        /* Başlat ikon üçgeni */
+        #playBtn:hover { transform: scale(1.1); }
         #playBtn::after {
             content: '';
             width: 0; height: 0;
@@ -30,77 +30,75 @@
             border-left: 45px solid #fff;
             margin-left: 15px;
         }
-        #playBtn:hover { transform: scale(1.1); background: #ff0000; }
-        
-        #loading { color: white; position: absolute; font-family: sans-serif; display: none; }
+        #status { color: #fff; position: absolute; bottom: 10%; font-family: sans-serif; font-size: 14px; opacity: 0.5; z-index: 10; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <div id="loading">BAĞLANILIYOR...</div>
     <div id="playBtn"></div>
-    <video id="video" playsinline></video>
+    <div id="status">BAĞLANTI BEKLENİYOR...</div>
+    <video id="video" playsinline crossorigin="anonymous"></video>
 
     <script>
         const video = document.getElementById('video');
         const playBtn = document.getElementById('playBtn');
-        const loading = document.getElementById('loading');
-        const source = "https://mpu.zirvedesin216.cfd/zirve/mono.m3u8";
+        const status = document.getElementById('status');
+        const streamUrl = "https://mpu.zirvedesin216.cfd/zirve/mono.m3u8";
 
-        function startProPlayer() {
+        function startPlayer() {
             if (Hls.isSupported()) {
                 const hls = new Hls({
-                    debug: false,
-                    enableWorker: true,
-                    lowLatencyMode: true,
-                    backBufferLength: 90,
-                    // NETWORK ERROR ÇÖZÜCÜ AYARLAR
                     xhrSetup: function(xhr) {
-                        xhr.withCredentials = false;
+                        xhr.withCredentials = false; // Güvenlik engelini esnetir
                     },
-                    manifestLoadingMaxRetry: 10,
-                    levelLoadingMaxRetry: 10
+                    manifestLoadingMaxRetry: 15, // 15 kez bağlanmaya zorlar
+                    manifestLoadingRetryDelay: 1000,
+                    enableWorker: true,
+                    startLevel: -1 // En uygun kaliteyle başlar
                 });
 
-                hls.loadSource(source);
+                hls.loadSource(streamUrl);
                 hls.attachMedia(video);
 
-                hls.on(Hls.Events.ERROR, function (event, data) {
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    status.innerText = "YAYIN HAZIR";
+                    video.play();
+                });
+
+                hls.on(Hls.Events.ERROR, function(event, data) {
                     if (data.fatal) {
+                        status.innerText = "BAĞLANTI HATASI, TEKRAR DENENİYOR...";
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.log("Ağ hatası! Tekrar deneniyor...");
                                 hls.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
                                 hls.recoverMediaError();
                                 break;
                             default:
-                                hls.destroy();
+                                video.src = streamUrl; // Yerel oynatıcıya zorla
+                                video.play();
                                 break;
                         }
                     }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = source;
+                // Safari ve bazı LG/Samsung TV yerel oynatıcı desteği
+                video.src = streamUrl;
+                video.play();
             }
         }
 
-        // Başlat Butonu İşlemi
+        // Başlat Butonuna Tıklama / OK Tuşu
         playBtn.addEventListener('click', () => {
             playBtn.style.display = 'none';
-            loading.style.display = 'block';
-            startProPlayer();
-            video.play().catch(() => {
-                loading.innerText = "HATA: TV İZNİ GEREKLİ!";
-            });
+            status.innerText = "YAYIN YÜKLENİYOR...";
+            startPlayer();
         });
 
-        video.addEventListener('playing', () => { loading.style.display = 'none'; });
-
-        // Kumanda OK Tuşu Desteği
+        // Smart TV Kumanda OK Tuşu Desteği
         document.addEventListener('keydown', (e) => {
-            if (e.keyCode === 13) {
+            if (e.keyCode === 13) { // OK Tuşu
                 if (playBtn.style.display !== 'none') {
                     playBtn.click();
                 } else {
