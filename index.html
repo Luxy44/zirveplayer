@@ -1,77 +1,56 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zirve Player</title>
-    <style>
-        /* Tam Ekran Karartma */
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        video { width: 100%; height: 100%; background: #000; }
-
-        /* İSTEDİĞİN O ÖNCEKİ BÜYÜK KIRMIZI BUTON */
-        #playBtn {
-            position: absolute;
-            width: 120px; height: 120px;
-            background: rgba(229, 9, 20, 0.9);
-            border-radius: 50%;
-            border: 5px solid #fff;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; z-index: 999;
-            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
-        }
-        #playBtn::after {
-            content: '';
-            width: 0; height: 0;
-            border-top: 20px solid transparent;
-            border-bottom: 20px solid transparent;
-            border-left: 35px solid #fff;
-            margin-left: 10px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zirve Player - Her Platformda Çalışır</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    body, html { margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
+    #video { width:100vw; height:100vh; object-fit:contain; }
+    .controls { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); padding:10px 20px; border-radius:10px; color:white; font-family:Arial; }
+  </style>
 </head>
 <body>
+  <video id="video" controls autoplay playsinline></video>
+  
+  <div class="controls">
+    <input type="text" id="url" value="https://ejr.zirvedesin218.cfd/zirve/mono.m3u8" style="width:500px; max-width:90%; padding:8px; color:black;">
+    <button onclick="load()" style="padding:8px 15px;">Yükle</button>
+  </div>
 
-    <div id="playBtn"></div>
-
-    <video id="video" controls playsinline></video>
-
-    <script>
-        const video = document.getElementById('video');
-        const playBtn = document.getElementById('playBtn');
-        // Senin m3u8 linkin
-        const streamUrl = "https://mpu.zirvedesin216.cfd/zirve/mono.m3u8";
-
-        // Butona tıklandığında yayını başlat
-        playBtn.addEventListener('click', function() {
-            playBtn.style.display = 'none'; // Butonu gizle
-            
-            // LG TV ve Laptop için en basit yükleme metodu
-            video.src = streamUrl;
-            video.load();
-            
-            var playPromise = video.play();
-            
-            if (playPromise !== undefined) {
-                playPromise.then(_ => {
-                    // Otomatik oynatma başladı
-                }).catch(error => {
-                    // Hata olursa (TV izni gibi) kullanıcıya tekrar göster
-                    console.log("Oynatma hatası:", error);
-                });
-            }
+  <script>
+    const video = document.getElementById('video');
+    const urlInput = document.getElementById('url');
+    
+    function load() {
+      const url = urlInput.value.trim() || urlInput.getAttribute('value');
+      
+      if (Hls.isSupported()) {
+        if (window.currentHls) window.currentHls.destroy();
+        window.currentHls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 90
         });
-
-        // Kumanda OK Tuşu Desteği
-        document.addEventListener('keydown', function(e) {
-            if (e.keyCode === 13) { // OK Tuşu
-                if (playBtn.style.display !== 'none') {
-                    playBtn.click();
-                } else {
-                    if (video.paused) { video.play(); } else { video.pause(); }
-                }
-            }
-        });
-    </script>
+        window.currentHls.loadSource(url);
+        window.currentHls.attachMedia(video);
+        window.currentHls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+      } 
+      else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.play();
+      }
+    }
+    
+    // Sayfa açılır açılmaz otomatik başlat
+    load();
+    
+    // Klavye kısayolları (isteğe bağlı)
+    document.addEventListener('keydown', e => {
+      if (e.key === 'F') video.requestFullscreen();
+      if (e.key === ' ') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+    });
+  </script>
 </body>
 </html>
